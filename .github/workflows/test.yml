@@ -141,6 +141,111 @@ jobs:
             throw "cosign was installed before version validation failed"
           }
 
+  reject-missing-cosign:
+    name: reject-missing-cosign (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Check Linux missing cosign error
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          fake_bin="$RUNNER_TEMP/no-cosign-bin"
+          mkdir -p "$fake_bin"
+          for utility in dirname mktemp rm; do
+            ln -s "$(command -v "$utility")" "$fake_bin/$utility"
+          done
+          sentinel="$RUNNER_TEMP/download-attempted"
+          printf '%s\n' '#!/bin/sh' 'printf "%s\\n" "download attempted" >> "$DOWNLOAD_SENTINEL"' 'exit 1' > "$fake_bin/curl"
+          chmod +x "$fake_bin/curl"
+
+          github_path="$RUNNER_TEMP/github-path"
+          github_output="$RUNNER_TEMP/github-output"
+          install_dir="$RUNNER_TEMP/sotto-bin"
+          printf '%s' path-sentinel > "$github_path"
+          printf '%s' output-sentinel > "$github_output"
+
+          set +e
+          output="$(
+            PATH="$fake_bin" \
+            DOWNLOAD_SENTINEL="$sentinel" \
+            SOTTO_VERSION=v1.2.3 \
+            SOTTO_INSTALL_DIR="$install_dir" \
+            GITHUB_PATH="$github_path" \
+            GITHUB_OUTPUT="$github_output" \
+            scripts/install.sh 2>&1
+          )"
+          status=$?
+          set -e
+
+          test "$status" -ne 0
+          test "$output" = 'error: cosign is required to verify the Sotto release'
+          test ! -e "$sentinel"
+          test ! -e "$install_dir"
+          test "$(cat "$github_path")" = path-sentinel
+          test "$(cat "$github_output")" = output-sentinel
+
+      - name: Check Windows missing cosign error
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Define the PowerShell download sentinel before narrowing PATH so the test remains
+          # independent of the hosted runner's installed utilities.
+          $FakeBin = Join-Path $env:RUNNER_TEMP "no-cosign-bin"
+          New-Item -ItemType Directory -Path $FakeBin | Out-Null
+          $Sentinel = Join-Path $env:RUNNER_TEMP "download-attempted"
+          $GithubPath = Join-Path $env:RUNNER_TEMP "github-path"
+          $GithubOutput = Join-Path $env:RUNNER_TEMP "github-output"
+          $InstallDir = Join-Path $env:RUNNER_TEMP "sotto-bin"
+          $PathSentinel = "path-sentinel"
+          $OutputSentinel = "output-sentinel"
+          Set-Content -Path $GithubPath -Value $PathSentinel -NoNewline
+          Set-Content -Path $GithubOutput -Value $OutputSentinel -NoNewline
+
+          function Invoke-WebRequest {
+            Set-Content -Path $env:DOWNLOAD_SENTINEL -Value "download attempted" -NoNewline
+            throw "download attempted"
+          }
+
+          # PowerShell is already running; restrict only child executable lookup so cosign is
+          # guaranteed absent while the installer still uses its normal cmdlets.
+          $env:PATH = $FakeBin
+          $env:DOWNLOAD_SENTINEL = $Sentinel
+          $env:SOTTO_VERSION = "v1.2.3"
+          $env:SOTTO_INSTALL_DIR = $InstallDir
+          $env:GITHUB_PATH = $GithubPath
+          $env:GITHUB_OUTPUT = $GithubOutput
+          $Expected = "error: cosign is required to verify the Sotto release"
+
+          try {
+            & scripts/install.ps1
+            throw "installer accepted a missing cosign executable"
+          } catch {
+            if ($_.Exception.Message -ne $Expected) {
+              throw "unexpected missing cosign error: $($_.Exception.Message)"
+            }
+          }
+
+          if (Test-Path $Sentinel) {
+            throw "installer attempted a download before checking cosign"
+          }
+          if (Test-Path $InstallDir) {
+            throw "installer created an install directory before checking cosign"
+          }
+          if ((Get-Content -Raw $GithubPath) -ne $PathSentinel) {
+            throw "installer changed GITHUB_PATH before checking cosign"
+          }
+          if ((Get-Content -Raw $GithubOutput) -ne $OutputSentinel) {
+            throw "installer changed GITHUB_OUTPUT before checking cosign"
+          }
+
   reject-missing-release:
     name: reject-missing-release (${{ matrix.runner }})
     strategy:
