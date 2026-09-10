@@ -128,37 +128,37 @@ verification model.
 
 If installation fails, check the error message below for the likely cause and the next steps.
 
-### 
+### `sotto-version must be an exact release such as v0.4.0`
 
-The CLI version must be an exact release in  format, such as . Passing the format check does not confirm that the release exists.
+The CLI version must be an exact release in `vX.Y.Z` format, such as `v0.4.0`. Passing the format check does not confirm that the release exists.
 
 Check the [Sotto releases](https://github.com/getsotto/sotto/releases) page and use an exact release tag.
 
-### 
+### `release asset not found: $1` / `release asset not found: $Uri`
 
 The requested release or the required asset for the runner's operating system and architecture could not be found.
 
 Check that the requested CLI release exists and that it provides an asset for the runner target.
 
-### 
+### `download failed: $1` / `download failed: $Uri`
 
 The installer could not download the requested file.
 
 Inspect the failed URL in the runner logs and check the runner's network connectivity, proxy, or firewall configuration. This is different from a missing release asset.
 
-### 
+### `Sigstore verification failed for $file` / `Sigstore verification failed for $Asset` / `Sigstore verification failed for SHA256SUMS`
 
 The downloaded file or checksum manifest could not be successfully verified using Sigstore.
 
 Inspect the failed verification step and its logs. If the failure persists, report the action ref, Sotto CLI version, runner, and relevant logs. Do not disable verification.
 
-### 
+### `checksum verification failed for $asset` / `checksum verification failed for $Asset`
 
-The downloaded file's SHA-256 checksum does not match the expected checksum in .
+The downloaded file's SHA-256 checksum does not match the expected checksum in `SHA256SUMS`.
 
 Inspect the checksum verification step and its logs. If the failure persists, report the action ref, Sotto CLI version, runner, and relevant logs.
 
-### 
+### `no prebuilt Sotto binary for $os/$arch` / `no prebuilt Sotto binary for Windows/$Architecture`
 
 No prebuilt Sotto binary is available for the runner's operating system and architecture. On Windows, the error includes the architecture.
 
