@@ -75,6 +75,30 @@ Give the step an `id` to use the resolved installation details in later steps:
 | `target` | Resolved release target | `aarch64-apple-darwin` | `x86_64-pc-windows-msvc` |
 | `binary-path` | Absolute installed binary path | `/Users/runner/work/_temp/sotto-bin/sotto` | `D:\a\_temp\sotto-bin\sotto.exe` |
 
+### Invoking the binary directly
+
+If you need to invoke the installed binary by its absolute path (for example, when testing a specific installation or when PATH is not available), use the `binary-path` output through an environment variable:
+
+```yaml
+- uses: getsotto/sotto-action@543d1af56ac81d1f1511d88c3d269106e8513a28 # merged v1.1 implementation
+  id: sotto
+  with:
+    sotto-version: v0.4.0
+
+- name: Verify installed binary (Bash)
+  run: "$SOTTO_BINARY_PATH" --version
+  env:
+    SOTTO_BINARY_PATH: ${{ steps.sotto.outputs.binary-path }}
+
+- name: Verify installed binary (PowerShell)
+  shell: pwsh
+  run: & $env:SOTTO_BINARY_PATH --version
+  env:
+    SOTTO_BINARY_PATH: ${{ steps.sotto.outputs.binary-path }}
+```
+
+Ordinary consumers can continue using `sotto` through PATH in subsequent steps, as the action adds the binary to PATH automatically. The `binary-path` output is primarily useful for testing, debugging, or when you need precise control over which binary is invoked.
+
 ## Pinning the action
 
 The action ref and the CLI release are independent. The available ref styles are:
